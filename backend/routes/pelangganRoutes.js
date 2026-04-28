@@ -45,6 +45,7 @@ router.get('/:id', PelangganController.getPelangganById);
 
 // POST route
 router.post('/', validatePelanggan, PelangganController.createPelanggan);
+router.post('/geocode/auto-all', PelangganController.geocodeAllPelanggan);
 
 // IMPORT route
 router.post('/import/excel', upload.single('file'), PelangganController.importFromExcel);

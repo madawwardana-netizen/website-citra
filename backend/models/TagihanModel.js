@@ -6,6 +6,8 @@
 const pool = require('../config/database');
 
 class TagihanModel {
+  static pool = pool;
+  
   // Get semua tagihan dengan join pelanggan
   static async getAllTagihan(page = 1, limit = 10, status = null) {
     try {
@@ -48,6 +50,22 @@ class TagihanModel {
         [pelanggan_id]
       );
       return rows;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get tagihan by ID
+  static async getTagihanById(id) {
+    try {
+      const [rows] = await pool.query(
+        `SELECT t.*, p.nama_pelanggan, p.no_telepon 
+         FROM tagihan t 
+         LEFT JOIN pelanggan p ON t.pelanggan_id = p.id 
+         WHERE t.id = ?`,
+        [id]
+      );
+      return rows.length > 0 ? rows[0] : null;
     } catch (error) {
       throw error;
     }
@@ -107,11 +125,11 @@ class TagihanModel {
   // Update tagihan
   static async updateTagihan(id, data) {
     try {
-      const { jumlah_tagihan, status_pembayaran, tanggal_pembayaran, metode_pembayaran, catatan } = data;
+      const { bulan_tagihan, jumlah_tagihan, status_pembayaran, tanggal_pembayaran, metode_pembayaran, catatan } = data;
 
       await pool.query(
-        'UPDATE tagihan SET jumlah_tagihan = ?, status_pembayaran = ?, tanggal_pembayaran = ?, metode_pembayaran = ?, catatan = ? WHERE id = ?',
-        [jumlah_tagihan, status_pembayaran, tanggal_pembayaran, metode_pembayaran, catatan, id]
+        'UPDATE tagihan SET bulan_tagihan = ?, jumlah_tagihan = ?, status_pembayaran = ?, tanggal_pembayaran = ?, metode_pembayaran = ?, catatan = ? WHERE id = ?',
+        [bulan_tagihan, jumlah_tagihan, status_pembayaran, tanggal_pembayaran, metode_pembayaran, catatan, id]
       );
 
       return { id, ...data };

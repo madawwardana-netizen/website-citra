@@ -15,6 +15,11 @@ const lokasiRoutes = require('./routes/lokasiRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const whatsappRoutes = require('./routes/whatsappRoutes');
 const geocodingRoutes = require('./routes/geocodingRoutes');
+const billingSchedulerRoutes = require('./routes/billingSchedulerRoutes');
+const billingScheduleRoutes = require('./routes/billingScheduleRoutes');
+
+// Import services
+const BillingScheduler = require('./services/BillingScheduler');
 
 // Initialize Express App
 const app = express();
@@ -38,6 +43,8 @@ app.use('/api/lokasi', lokasiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/geocoding', geocodingRoutes);
+app.use('/api/billing', billingSchedulerRoutes);
+app.use('/api/billing-schedule', billingScheduleRoutes);
 
 // Root endpoint
 app.get('/api', (req, res) => {
@@ -51,7 +58,8 @@ app.get('/api', (req, res) => {
       tagihan: '/api/tagihan',
       lokasi: '/api/lokasi',
       admin: '/api/admin',
-      whatsapp: '/api/whatsapp'
+      whatsapp: '/api/whatsapp',
+      billing: '/api/billing'
     }
   });
 });
@@ -80,7 +88,11 @@ app.listen(PORT, () => {
   console.log(`\n╔═══════════════════════════════════════╗`);
   console.log(`║  ISP Management System - API Server  ║`);
   console.log(`║  Running on http://localhost:${PORT}      ║`);
-  console.log(`╚═══════════════════════════════════════╝\n`);
+  console.log(`╚═══════════════════════════════════════╝`);
+
+  // Start billing scheduler
+  console.log('');
+  BillingScheduler.start();
 });
 
 module.exports = app;

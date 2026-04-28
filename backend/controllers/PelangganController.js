@@ -233,6 +233,7 @@ class PelangganController {
   static async getPelangganWithCoordinates(req, res) {
     try {
       const pool = require('../config/database');
+      const geocoding = require('../services/GeocodingService');
       
       const query = `
         SELECT 
@@ -253,7 +254,49 @@ class PelangganController {
         ORDER BY p.nama_pelanggan ASC
       `;
 
-      const [rows] = await pool.execute(query);
+      let [rows] = await pool.execute(query);
+
+      // Try to geocode pelanggan yang belum punya koordinat
+      const pelangganTanpaLokasi = `
+        SELECT id, nama_pelanggan, alamat 
+        FROM pelanggan 
+        WHERE id NOT IN (SELECT pelanggan_id FROM lokasi WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND latitude != 0 AND longitude != 0)
+        LIMIT 5
+      `;
+      
+      const [missingCoords] = await pool.execute(pelangganTanpaLokasi);
+      
+      if (missingCoords && missingCoords.length > 0) {
+        console.log(`🔄 Attempting to geocode ${missingCoords.length} pelanggan tanpa lokasi...`);
+        
+        for (const pelanggan of missingCoords) {
+          try {
+            const geocoded = await geocoding.geocodeAddress(pelanggan.alamat);
+            if (geocoded.success) {
+              // Save to database
+              const insertQuery = `
+                INSERT INTO lokasi (pelanggan_id, latitude, longitude, keterangan_lokasi) 
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE latitude = VALUES(latitude), longitude = VALUES(longitude)
+              `;
+              
+              await pool.execute(insertQuery, [
+                pelanggan.id,
+                geocoded.latitude,
+                geocoded.longitude,
+                pelanggan.alamat
+              ]);
+              
+              console.log(`✓ Geocoded ${pelanggan.nama_pelanggan}: (${geocoded.latitude.toFixed(6)}, ${geocoded.longitude.toFixed(6)})`);
+            }
+          } catch (error) {
+            console.error(`✗ Failed to geocode ${pelanggan.nama_pelanggan}:`, error.message);
+          }
+        }
+        
+        // Re-fetch data after geocoding
+        [rows] = await pool.execute(query);
+      }
 
       console.log(`✓ GetPelangganWithCoordinates: Found ${rows.length} locations`);
 
@@ -268,6 +311,92 @@ class PelangganController {
         success: true,
         message: 'Data pelanggan dengan koordinat berhasil diambil (kosong)',
         data: []
+      });
+    }
+  }
+
+  // POST auto-geocode semua pelanggan yang belum punya koordinat
+  static async geocodeAllPelanggan(req, res) {
+    try {
+      const pool = require('../config/database');
+      const geocoding = require('../services/GeocodingService');
+
+      // Get all pelanggan tanpa lokasi
+      const query = `
+        SELECT p.id, p.nama_pelanggan, p.alamat 
+        FROM pelanggan p
+        LEFT JOIN lokasi l ON p.id = l.pelanggan_id
+        WHERE l.latitude IS NULL OR l.longitude IS NULL OR l.latitude = 0 OR l.longitude = 0
+        ORDER BY p.nama_pelanggan ASC
+      `;
+
+      const [pelangganList] = await pool.execute(query);
+
+      if (pelangganList.length === 0) {
+        return res.json({
+          success: true,
+          message: 'Semua pelanggan sudah memiliki koordinat',
+          geocoded: 0,
+          failed: 0
+        });
+      }
+
+      let geocoded = 0;
+      let failed = 0;
+      const failedList = [];
+
+      console.log(`🔄 Auto-geocoding ${pelangganList.length} pelanggan...`);
+
+      for (const pelanggan of pelangganList) {
+        try {
+          const result = await geocoding.geocodeAddress(pelanggan.alamat);
+          
+          if (result.success) {
+            // Check if lokasi already exists
+            const checkQuery = 'SELECT id FROM lokasi WHERE pelanggan_id = ?';
+            const [existing] = await pool.execute(checkQuery, [pelanggan.id]);
+
+            if (existing.length > 0) {
+              // Update existing
+              const updateQuery = 'UPDATE lokasi SET latitude = ?, longitude = ?, keterangan_lokasi = ? WHERE pelanggan_id = ?';
+              await pool.execute(updateQuery, [result.latitude, result.longitude, pelanggan.alamat, pelanggan.id]);
+            } else {
+              // Insert new
+              const insertQuery = 'INSERT INTO lokasi (pelanggan_id, latitude, longitude, keterangan_lokasi) VALUES (?, ?, ?, ?)';
+              await pool.execute(insertQuery, [pelanggan.id, result.latitude, result.longitude, pelanggan.alamat]);
+            }
+
+            console.log(`✓ ${pelanggan.nama_pelanggan}: (${result.latitude.toFixed(6)}, ${result.longitude.toFixed(6)})`);
+            geocoded++;
+          } else {
+            console.error(`✗ Failed: ${pelanggan.nama_pelanggan} - ${result.error}`);
+            failed++;
+            failedList.push({ name: pelanggan.nama_pelanggan, error: result.error });
+          }
+        } catch (error) {
+          console.error(`✗ Error geocoding ${pelanggan.nama_pelanggan}:`, error.message);
+          failed++;
+          failedList.push({ name: pelanggan.nama_pelanggan, error: error.message });
+        }
+
+        // Add delay to respect API rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      res.json({
+        success: true,
+        message: `Geocoding selesai: ${geocoded} berhasil, ${failed} gagal`,
+        geocoded,
+        failed,
+        failedList: failedList.length > 0 ? failedList : undefined
+      });
+
+    } catch (error) {
+      console.error('Error in geocodeAllPelanggan:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Gagal melakukan auto-geocode',
+        error: error.message
       });
     }
   }

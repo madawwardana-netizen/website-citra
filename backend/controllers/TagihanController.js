@@ -108,6 +108,34 @@ class TagihanController {
     }
   }
 
+  // GET tagihan by ID
+  static async getTagihanById(req, res) {
+    try {
+      const { id } = req.params;
+
+      const tagihan = await TagihanModel.getTagihanById(id);
+      if (!tagihan) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tagihan tidak ditemukan'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Data tagihan berhasil diambil',
+        data: tagihan
+      });
+    } catch (error) {
+      console.error('Error getting tagihan by id:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Gagal mengambil data tagihan',
+        error: error.message
+      });
+    }
+  }
+
   // POST create tagihan baru
   static async createTagihan(req, res) {
     try {
@@ -159,7 +187,7 @@ class TagihanController {
   static async updateTagihan(req, res) {
     try {
       const { id } = req.params;
-      const { jumlah_tagihan, status_pembayaran, tanggal_pembayaran, metode_pembayaran, catatan } = req.body;
+      const { bulan_tagihan, jumlah_tagihan, status_pembayaran, tanggal_pembayaran, metode_pembayaran, catatan } = req.body;
 
       // Check if tagihan exists
       const [rows] = await TagihanModel.pool.query('SELECT * FROM tagihan WHERE id = ?', [id]);
@@ -172,6 +200,7 @@ class TagihanController {
 
       // Update tagihan
       const updated = await TagihanModel.updateTagihan(id, {
+        bulan_tagihan,
         jumlah_tagihan,
         status_pembayaran,
         tanggal_pembayaran,

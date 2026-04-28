@@ -7,6 +7,9 @@ const express = require('express');
 const router = express.Router();
 const WhatsAppController = require('../controllers/WhatsAppController');
 
+// Send general message
+router.post('/send', WhatsAppController.sendMessage);
+
 // Send reminder untuk tagihan H-3 (biasanya di-trigger oleh cron job)
 router.post('/send-reminder-h3', WhatsAppController.sendReminderTagihanH3);
 

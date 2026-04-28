@@ -424,6 +424,7 @@ input::placeholder {
   z-index: 2000;
   align-items: center;
   justify-content: center;
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
 }
 
@@ -505,6 +506,7 @@ input::placeholder {
   z-index: 2000;
   align-items: center;
   justify-content: center;
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   padding: 20px;
 }
@@ -632,4 +634,32 @@ input::placeholder {
   .page-title {
     font-size: 18px;
   }
+}
+
+/* Preview Message Text */
+.preview-message-text {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* Scheduler Status Panel */
+.scheduler-status-panel {
+  padding: 20px;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Map Controls Panel */
+.map-controls-panel {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+/* Geocode Status Text */
+.geocode-status-text {
+  margin-left: auto;
+  align-self: center;
+  font-size: 0.9rem;
+  color: #666;
 }

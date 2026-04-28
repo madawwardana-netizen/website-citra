@@ -11,6 +11,49 @@ require('dotenv').config();
 
 class WhatsAppController {
   /**
+   * Send general message
+   */
+  static async sendMessage(req, res) {
+    try {
+      const { phone, message } = req.body;
+
+      if (!phone || !message) {
+        return res.status(400).json({
+          success: false,
+          message: 'phone dan message harus diisi',
+          error: 'Missing required fields'
+        });
+      }
+
+      const wa = new WhatsAppService();
+      const result = await wa.sendMessage(phone, message);
+
+      if (result.success) {
+        console.log(`✓ WhatsApp sent to ${phone}`);
+        res.json({
+          success: true,
+          message: 'Pesan berhasil dikirim ke ' + phone,
+          data: result.data
+        });
+      } else {
+        console.error(`✗ Failed to send to ${phone}: ${result.error}`);
+        res.status(500).json({
+          success: false,
+          message: 'Gagal mengirim pesan',
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Gagal mengirim pesan',
+        error: error.message
+      });
+    }
+  }
+
+  /**
    * Send reminder untuk tagihan belum bayar (H-3)
    */
   static async sendReminderTagihanH3(req, res) {

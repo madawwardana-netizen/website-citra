@@ -54,6 +54,12 @@
             <span>Peta Lokasi</span>
           </a>
         </li>
+        <li class="nav-item">
+          <a href="jadwal-pengiriman.html" class="nav-link">
+            <i class="fas fa-calendar-check"></i>
+            <span>Jadwal Pengiriman</span>
+          </a>
+        </li>
       </ul>
     </nav>
 
@@ -62,7 +68,7 @@
       <!-- Topbar -->
       <nav class="topbar">
         <div class="topbar-left">
-          <button class="btn-toggle-sidebar" id="toggleSidebar">
+          <button class="btn-toggle-sidebar" id="toggleSidebar" title="Toggle Sidebar">
             <i class="fas fa-bars"></i>
           </button>
           <h1 class="page-title">Data Tagihan</h1>
@@ -71,12 +77,42 @@
 
       <!-- Content -->
       <div class="content-area">
+        <!-- Scheduler Control Panel -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-clock"></i> Auto Billing Scheduler
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-8">
+                <div class="alert alert-info" id="schedulerStatus">
+                  <i class="fas fa-spinner fa-spin"></i> Loading scheduler status...
+                </div>
+              </div>
+              <div class="col-md-4 text-end">
+                <button class="btn btn-success" id="checkBillingBtn">
+                  <i class="fas fa-play"></i> Check Billing Sekarang
+                </button>
+              </div>
+            </div>
+            <small class="text-muted">
+              💡 Sistem otomatis akan mengecek dan membuat tagihan setiap hari pada jam 00:00, 
+              kemudian mengirim notifikasi WhatsApp ke pelanggan.
+            </small>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">Daftar Tagihan</h5>
             <div class="d-flex gap-2">
-              <button class="btn btn-primary">
+              <button class="btn btn-primary" id="btnBuatTagihan" data-bs-toggle="modal" data-bs-target="#modalBuatTagihan">
                 <i class="fas fa-plus"></i> Buat Tagihan Baru
+              </button>
+              <button class="btn btn-info" id="btnTestWhatsApp" data-bs-toggle="modal" data-bs-target="#modalTestWhatsApp">
+                <i class="fas fa-paper-plane"></i> Test WhatsApp
               </button>
               <button class="btn btn-success">
                 <i class="fas fa-download"></i> Export CSV
@@ -85,10 +121,10 @@
           </div>
 
           <!-- Filter -->
-          <div style="padding: 20px; background: #f9f9f9; border-bottom: 1px solid #e5e7eb;">
+        <div class="scheduler-status-panel">
             <div class="row">
               <div class="col-md-3">
-                <select class="form-select" id="filterStatus">
+                <select class="form-select" id="filterStatus" title="Filter berdasarkan status pembayaran">
                   <option value="">Semua Status</option>
                   <option value="lunas">Lunas</option>
                   <option value="belum_lunas">Belum Lunas</option>
@@ -96,7 +132,7 @@
                 </select>
               </div>
               <div class="col-md-3">
-                <input type="month" class="form-control" id="filterBulan">
+                <input type="month" class="form-control" id="filterBulan" title="Filter berdasarkan bulan" aria-label="Filter bulan tagihan">
               </div>
             </div>
           </div>
@@ -124,7 +160,154 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/axios@1/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../assets/js/main.js"></script>
   <script src="../assets/js/tagihan.js"></script>
+
+  <!-- Modal: Buat Tagihan Baru -->
+  <div class="modal fade" id="modalBuatTagihan" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-plus"></i> Buat Tagihan Baru
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Tutup modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formBuatTagihan">
+            <div class="mb-3">
+              <label class="form-label" for="selectPelanggan">Pelanggan</label>
+              <select class="form-select" id="selectPelanggan" title="Pilih pelanggan" required>
+                <option value="">-- Pilih Pelanggan --</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="inputBulanTagihan">Bulan Tagihan</label>
+              <input type="month" class="form-control" id="inputBulanTagihan" title="Pilih bulan tagihan" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Jumlah Tagihan (Rp)</label>
+              <input type="number" class="form-control" id="inputJumlahTagihan" placeholder="500000" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="selectStatusTagihan" title="Pilih status pembayaran" required>
+                <option value="belum_lunas">Belum Lunas</option>
+                <option value="cicilan">Cicilan</option>
+                <option value="lunas">Lunas</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Catatan</label>
+              <textarea class="form-control" id="inputCatatan" rows="2" placeholder="Opsional"></textarea>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkKirimWhatsApp">
+              <label class="form-check-label" for="checkKirimWhatsApp">
+                Kirim notifikasi WhatsApp ke pelanggan
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-primary" id="btnSimpanTagihan">
+            <i class="fas fa-save"></i> Simpan Tagihan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Tagihan -->
+  <div class="modal fade" id="modalEditTagihan" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-edit"></i> Edit Tagihan
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Tutup modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formEditTagihan">
+            <div class="mb-3">
+              <label class="form-label" for="editPelangganNama">Pelanggan</label>
+              <input type="text" class="form-control" id="editPelangganNama" disabled title="Nama pelanggan (tidak bisa diubah)">
+              <input type="hidden" id="editTagihanId">
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="editBulanTagihan">Bulan Tagihan</label>
+              <input type="month" class="form-control" id="editBulanTagihan" title="Edit bulan tagihan" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="inputJumlahTagihan">Jumlah Tagihan (Rp)</label>
+              <input type="number" class="form-control" id="inputJumlahTagihan" placeholder="0" title="Masukkan jumlah tagihan" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="editStatusTagihan" title="Edit status pembayaran" required>
+                <option value="belum_lunas">Belum Lunas</option>
+                <option value="cicilan">Cicilan</option>
+                <option value="lunas">Lunas</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="inputCatatan">Catatan</label>
+              <textarea class="form-control" id="inputCatatan" rows="2" placeholder="Catatan tambahan (opsional)" title="Tambahkan catatan"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-primary" id="btnSimpanEditTagihan">
+            <i class="fas fa-save"></i> Simpan Perubahan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Test WhatsApp -->
+  <div class="modal fade" id="modalTestWhatsApp" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-paper-plane"></i> Test Kirim WhatsApp
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Tutup modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formTestWhatsApp">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i> Kirim pesan test ke nomor WhatsApp Anda
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nomor Telepon (format: 62812... atau 0812...)</label>
+              <input type="text" class="form-control" id="inputNomorTest" placeholder="0812-1234-5678" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Pesan</label>
+              <textarea class="form-control" id="inputPesanTest" rows="4" placeholder="Halo! Ini adalah pesan test dari ISP Manager">Halo! 👋
+
+Ini adalah pesan test dari ISP Manager.
+
+Jika Anda menerima pesan ini, berarti WhatsApp API sudah berfungsi dengan baik.
+
+Terima kasih! 🙏</textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+          <button type="button" class="btn btn-success" id="btnKirimTest">
+            <i class="fas fa-paper-plane"></i> Kirim Test
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
