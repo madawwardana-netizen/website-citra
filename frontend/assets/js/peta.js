@@ -32,7 +32,7 @@ async function loadMap() {
       refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
     }
 
-    // Load pelanggan locations dari endpoint yang lebih baik
+    // Load pelanggan locations dari endpoint yang benar
     const res = await axios.get('/pelanggan/peta/coordinates');
     
     if (!res.data || !res.data.success) {
