@@ -63,10 +63,7 @@ class PerangkatModel {
 
       const [result] = await pool.execute(
         'INSERT INTO perangkat (pelanggan_id, nama_perangkat, tipe_perangkat, ip_address, mac_address, serial_number, status_perangkat, tanggal_instalasi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        axios.get('/perangkat?page=1').then(r => {
-          console.log('Field tipe:', r.data.data[0].tipe_perangkat);
-          console.log('Whole object:', r.data.data[0]);
-        })        [
+        [
           pelanggan_id,
           nama_perangkat,
           tipe_perangkat || 'router',
