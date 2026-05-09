@@ -30,13 +30,6 @@ function setupEventListeners() {
     btnSendAll.addEventListener('click', sendAllMessages);
   }
 
-  // Toggle sidebar
-  const toggleSidebar = document.getElementById('toggleSidebar');
-  if (toggleSidebar) {
-    toggleSidebar.addEventListener('click', () => {
-      document.querySelector('.sidebar').classList.toggle('collapsed');
-    });
-  }
 }
 
 /**

@@ -1,10 +1,10 @@
 /**
  * Perangkat Controller
- * Controller untuk menangani request perangkat
+ * Controller untuk menangani request perangkat menggunakan Mongoose
  */
 
-const PerangkatModel = require('../models/PerangkatModel');
-const PelangganModel = require('../models/PelangganModel');
+const Perangkat = require('../models/Perangkat');
+const Pelanggan = require('../models/Pelanggan');
 
 class PerangkatController {
   // GET all perangkat
@@ -13,17 +13,22 @@ class PerangkatController {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
 
-      const result = await PerangkatModel.getAllPerangkat(page, limit);
+      const total = await Perangkat.countDocuments();
+      const data = await Perangkat.find()
+        .populate('pelanggan_id')
+        .sort({ tanggal_dibuat: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
 
       res.json({
         success: true,
         message: 'Data perangkat berhasil diambil',
-        data: result.data,
+        data,
         pagination: {
-          page: result.page,
-          limit: result.limit,
-          total: result.total,
-          pages: result.pages
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
         }
       });
     } catch (error) {
@@ -41,16 +46,7 @@ class PerangkatController {
     try {
       const { pelanggan_id } = req.params;
 
-      // Check if pelanggan exists
-      const pelanggan = await PelangganModel.getPelangganById(pelanggan_id);
-      if (!pelanggan) {
-        return res.status(404).json({
-          success: false,
-          message: 'Pelanggan tidak ditemukan'
-        });
-      }
-
-      const perangkat = await PerangkatModel.getPerangkatByPelangganId(pelanggan_id);
+      const perangkat = await Perangkat.find({ pelanggan_id });
 
       res.json({
         success: true,
@@ -71,7 +67,7 @@ class PerangkatController {
   static async getPerangkatById(req, res) {
     try {
       const { id } = req.params;
-      const perangkat = await PerangkatModel.getPerangkatById(id);
+      const perangkat = await Perangkat.findById(id).populate('pelanggan_id');
 
       if (!perangkat) {
         return res.status(404).json({
@@ -100,32 +96,14 @@ class PerangkatController {
     try {
       const { pelanggan_id, nama_perangkat, tipe_perangkat, ip_address, mac_address, serial_number, status_perangkat, tanggal_instalasi } = req.body;
 
-      // Validasi data
-      if (!pelanggan_id || !nama_perangkat) {
-        return res.status(400).json({
-          success: false,
-          message: 'Data perangkat tidak lengkap'
-        });
-      }
-
-      // Check if pelanggan exists
-      const pelanggan = await PelangganModel.getPelangganById(pelanggan_id);
-      if (!pelanggan) {
-        return res.status(404).json({
-          success: false,
-          message: 'Pelanggan tidak ditemukan'
-        });
-      }
-
-      // Create perangkat
-      const perangkat = await PerangkatModel.createPerangkat({
+      const perangkat = await Perangkat.create({
         pelanggan_id,
         nama_perangkat,
         tipe_perangkat,
         ip_address,
         mac_address,
         serial_number,
-        status_perangkat,
+        status_perangkat: status_perangkat || 'aktif',
         tanggal_instalasi
       });
 
@@ -150,8 +128,15 @@ class PerangkatController {
       const { id } = req.params;
       const { nama_perangkat, tipe_perangkat, ip_address, mac_address, serial_number, status_perangkat } = req.body;
 
-      // Check if perangkat exists
-      const perangkat = await PerangkatModel.getPerangkatById(id);
+      const perangkat = await Perangkat.findByIdAndUpdate(id, {
+        nama_perangkat,
+        tipe_perangkat,
+        ip_address,
+        mac_address,
+        serial_number,
+        status_perangkat
+      }, { new: true });
+
       if (!perangkat) {
         return res.status(404).json({
           success: false,
@@ -159,20 +144,10 @@ class PerangkatController {
         });
       }
 
-      // Update perangkat
-      const updated = await PerangkatModel.updatePerangkat(id, {
-        nama_perangkat,
-        tipe_perangkat,
-        ip_address,
-        mac_address,
-        serial_number,
-        status_perangkat
-      });
-
       res.json({
         success: true,
         message: 'Perangkat berhasil diperbarui',
-        data: updated
+        data: perangkat
       });
     } catch (error) {
       console.error('Error updating perangkat:', error);
@@ -189,17 +164,13 @@ class PerangkatController {
     try {
       const { id } = req.params;
 
-      // Check if perangkat exists
-      const perangkat = await PerangkatModel.getPerangkatById(id);
+      const perangkat = await Perangkat.findByIdAndDelete(id);
       if (!perangkat) {
         return res.status(404).json({
           success: false,
           message: 'Perangkat tidak ditemukan'
         });
       }
-
-      // Delete perangkat
-      await PerangkatModel.deletePerangkat(id);
 
       res.json({
         success: true,

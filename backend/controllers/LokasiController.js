@@ -1,16 +1,16 @@
 /**
  * Lokasi Controller
- * Controller untuk menangani request lokasi pelanggan
+ * Controller untuk menangani request lokasi pelanggan menggunakan Mongoose
  */
 
-const LokasiModel = require('../models/LokasiModel');
-const PelangganModel = require('../models/PelangganModel');
+const Lokasi = require('../models/Lokasi');
+const Pelanggan = require('../models/Pelanggan');
 
 class LokasiController {
   // GET all lokasi
   static async getAllLokasi(req, res) {
     try {
-      const result = await LokasiModel.getAllLokasi();
+      const result = await Lokasi.find().populate('pelanggan_id');
 
       res.json({
         success: true,
@@ -32,16 +32,7 @@ class LokasiController {
     try {
       const { pelanggan_id } = req.params;
 
-      // Check if pelanggan exists
-      const pelanggan = await PelangganModel.getPelangganById(pelanggan_id);
-      if (!pelanggan) {
-        return res.status(404).json({
-          success: false,
-          message: 'Pelanggan tidak ditemukan'
-        });
-      }
-
-      const lokasi = await LokasiModel.getLokasiByPelangganId(pelanggan_id);
+      const lokasi = await Lokasi.findOne({ pelanggan_id });
 
       res.json({
         success: true,
@@ -63,25 +54,7 @@ class LokasiController {
     try {
       const { pelanggan_id, latitude, longitude, keterangan_lokasi } = req.body;
 
-      // Validasi data
-      if (!pelanggan_id || !latitude || !longitude) {
-        return res.status(400).json({
-          success: false,
-          message: 'Data lokasi tidak lengkap'
-        });
-      }
-
-      // Check if pelanggan exists
-      const pelanggan = await PelangganModel.getPelangganById(pelanggan_id);
-      if (!pelanggan) {
-        return res.status(404).json({
-          success: false,
-          message: 'Pelanggan tidak ditemukan'
-        });
-      }
-
-      // Create lokasi
-      const lokasi = await LokasiModel.createLokasi({
+      const lokasi = await Lokasi.create({
         pelanggan_id,
         latitude,
         longitude,
@@ -109,8 +82,12 @@ class LokasiController {
       const { id } = req.params;
       const { latitude, longitude, keterangan_lokasi } = req.body;
 
-      // Check if lokasi exists
-      const lokasi = await LokasiModel.getLokasiById(id);
+      const lokasi = await Lokasi.findByIdAndUpdate(id, {
+        latitude,
+        longitude,
+        keterangan_lokasi
+      }, { new: true });
+
       if (!lokasi) {
         return res.status(404).json({
           success: false,
@@ -118,17 +95,10 @@ class LokasiController {
         });
       }
 
-      // Update lokasi
-      const updated = await LokasiModel.updateLokasi(id, {
-        latitude,
-        longitude,
-        keterangan_lokasi
-      });
-
       res.json({
         success: true,
         message: 'Lokasi berhasil diperbarui',
-        data: updated
+        data: lokasi
       });
     } catch (error) {
       console.error('Error updating lokasi:', error);
@@ -145,17 +115,13 @@ class LokasiController {
     try {
       const { id } = req.params;
 
-      // Check if lokasi exists
-      const lokasi = await LokasiModel.getLokasiById(id);
+      const lokasi = await Lokasi.findByIdAndDelete(id);
       if (!lokasi) {
         return res.status(404).json({
           success: false,
           message: 'Lokasi tidak ditemukan'
         });
       }
-
-      // Delete lokasi
-      await LokasiModel.deleteLokasi(id);
 
       res.json({
         success: true,

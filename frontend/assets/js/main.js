@@ -13,21 +13,43 @@ const API_BASE_URL = 'http://localhost:5000/api';
 axios.defaults.baseURL = API_BASE_URL;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
-// Sidebar Toggle
+// Sidebar Toggle - Desktop and Mobile
 const toggleSidebarBtn = document.getElementById('toggleSidebar');
 const sidebar = document.querySelector('.sidebar');
+const mainContent = document.querySelector('.main-content');
+const wrapper = document.querySelector('.wrapper');
 
-if (toggleSidebarBtn) {
+if (toggleSidebarBtn && sidebar) {
   toggleSidebarBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('active');
+    sidebar.classList.toggle('collapsed');
+    mainContent.classList.toggle('collapsed');
+    
+    const isNowCollapsed = sidebar.classList.contains('collapsed');
+    localStorage.setItem('sidebar-collapsed', isNowCollapsed);
+    
+    if (isNowCollapsed) {
+      document.documentElement.classList.add('sidebar-collapsed');
+    } else {
+      document.documentElement.classList.remove('sidebar-collapsed');
+    }
   });
+  
+  // Restore sidebar state from localStorage
+  const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+  if (isCollapsed) {
+    sidebar.classList.add('collapsed');
+    mainContent.classList.add('collapsed');
+    document.documentElement.classList.add('sidebar-collapsed');
+  } else {
+    document.documentElement.classList.remove('sidebar-collapsed');
+  }
 }
 
 // Close sidebar when clicking outside (mobile)
 document.addEventListener('click', (e) => {
   if (window.innerWidth <= 768) {
     if (!e.target.closest('.sidebar') && !e.target.closest('.btn-toggle-sidebar')) {
-      sidebar.classList.remove('active');
+      sidebar?.classList.remove('active');
     }
   }
 });
@@ -93,5 +115,5 @@ function getStatusBadge(status) {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('ISP Management System loaded');
+  console.log('Citra NET Manager loaded');
 });

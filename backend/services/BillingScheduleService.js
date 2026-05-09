@@ -1,9 +1,10 @@
 /**
  * Billing Schedule Service
- * Service untuk menghitung jadwal pengiriman pesan ke pelanggan
+ * Service untuk menghitung jadwal pengiriman pesan ke pelanggan menggunakan Mongoose
  */
 
-const pool = require('../config/database');
+const Pelanggan = require('../models/Pelanggan');
+const Tagihan = require('../models/Tagihan');
 
 class BillingScheduleService {
   /**
@@ -48,44 +49,34 @@ class BillingScheduleService {
   static async getAllBillingSchedules() {
     try {
       // Get all active customers
-      const query = `
-        SELECT 
-          p.id,
-          p.nama_pelanggan,
-          p.no_telepon,
-          p.paket_layanan,
-          p.harga_bulanan,
-          p.tanggal_langganan,
-          COUNT(CASE WHEN t.status_pembayaran = 'belum_lunas' THEN 1 END) as tagihan_belum_lunas
-        FROM pelanggan p
-        LEFT JOIN tagihan t ON p.id = t.pelanggan_id
-        WHERE p.status = 'aktif'
-        GROUP BY p.id
-        ORDER BY p.nama_pelanggan ASC
-      `;
+      const pelangganList = await Pelanggan.find({ status: 'aktif' }).sort({ nama_pelanggan: 1 });
 
-      const [pelangganList] = await pool.query(query);
+      const schedules = [];
+      for (const p of pelangganList) {
+        // Hitung tagihan belum lunas
+        const tagihanBelumLunas = await Tagihan.countDocuments({ 
+          pelanggan_id: p._id, 
+          status_pembayaran: 'belum_lunas' 
+        });
 
-      // Calculate billing schedule for each customer
-      const schedules = pelangganList.map(pelanggan => {
-        const billingInfo = this.calculateNextBillingDate(pelanggan);
+        const billingInfo = this.calculateNextBillingDate(p);
         
-        return {
-          id: pelanggan.id,
-          nama_pelanggan: pelanggan.nama_pelanggan,
-          no_telepon: pelanggan.no_telepon,
-          paket_layanan: pelanggan.paket_layanan,
-          harga_bulanan: pelanggan.harga_bulanan,
-          tanggal_langganan: pelanggan.tanggal_langganan,
-          tagihan_belum_lunas: pelanggan.tagihan_belum_lunas,
+        schedules.push({
+          id: p._id.toString(),
+          nama_pelanggan: p.nama_pelanggan,
+          no_telepon: p.no_telepon,
+          paket_layanan: p.paket_layanan,
+          harga_bulanan: p.harga_bulanan,
+          tanggal_langganan: p.tanggal_langganan,
+          tagihan_belum_lunas: tagihanBelumLunas,
           next_billing_date: billingInfo.nextBillingDate,
           next_billing_formatted: billingInfo.formattedDate,
           days_until_billing: billingInfo.daysUntilBilling,
           status: billingInfo.daysUntilBilling <= 0 ? 'overdue' : 
                   billingInfo.daysUntilBilling <= 3 ? 'soon' : 'normal',
-          message_preview: this.generateMessagePreview(pelanggan, billingInfo)
-        };
-      });
+          message_preview: this.generateMessagePreview(p, billingInfo)
+        });
+      }
 
       return schedules;
     } catch (error) {
@@ -103,67 +94,43 @@ class BillingScheduleService {
   static generateMessagePreview(pelanggan, billingInfo) {
     const currency = new Intl.NumberFormat('id-ID').format(pelanggan.harga_bulanan);
     
-    return `🔔 *Notifikasi Tagihan WiFi* 🔔
-
-Halo ${pelanggan.nama_pelanggan}! 👋
-
-Berikut ringkasan tagihan WiFi Anda:
-
-📦 *Paket*: ${pelanggan.paket_layanan}
-💰 *Jumlah Tagihan*: Rp${currency}
-📅 *Jatuh Tempo*: ${billingInfo.formattedDate}
-⏰ *Status*: Belum Dibayar
-
-Mohon segera lakukan pembayaran untuk menjaga kelancaran layanan Anda.
-
-Terima kasih! 🙏`;
+    return `🔔 *Notifikasi Tagihan WiFi* 🔔\n\nHalo ${pelanggan.nama_pelanggan}! 👋\n\nBerikut ringkasan tagihan WiFi Anda:\n\n📦 *Paket*: ${pelanggan.paket_layanan}\n💰 *Jumlah Tagihan*: Rp${currency}\n📅 *Jatuh Tempo*: ${billingInfo.formattedDate}\n⏰ *Status*: Belum Dibayar\n\nMohon segera lakukan pembayaran untuk menjaga kelancaran layanan Anda.\n\nTerima kasih! 🙏`;
   }
 
   /**
    * Get billing schedule for a specific customer
-   * @param {Number} pelangganId - Customer ID
+   * @param {String} pelangganId - Customer ID
    * @returns {Object} Customer with billing schedule
    */
   static async getBillingScheduleByCustomer(pelangganId) {
     try {
-      const query = `
-        SELECT 
-          p.id,
-          p.nama_pelanggan,
-          p.no_telepon,
-          p.paket_layanan,
-          p.harga_bulanan,
-          p.tanggal_langganan,
-          COUNT(CASE WHEN t.status_pembayaran = 'belum_lunas' THEN 1 END) as tagihan_belum_lunas
-        FROM pelanggan p
-        LEFT JOIN tagihan t ON p.id = t.pelanggan_id
-        WHERE p.id = ? AND p.status = 'aktif'
-        GROUP BY p.id
-      `;
-
-      const [rows] = await pool.query(query, [pelangganId]);
+      const p = await Pelanggan.findOne({ _id: pelangganId, status: 'aktif' });
       
-      if (rows.length === 0) {
+      if (!p) {
         return null;
       }
 
-      const pelanggan = rows[0];
-      const billingInfo = this.calculateNextBillingDate(pelanggan);
+      const tagihanBelumLunas = await Tagihan.countDocuments({ 
+        pelanggan_id: p._id, 
+        status_pembayaran: 'belum_lunas' 
+      });
+
+      const billingInfo = this.calculateNextBillingDate(p);
 
       return {
-        id: pelanggan.id,
-        nama_pelanggan: pelanggan.nama_pelanggan,
-        no_telepon: pelanggan.no_telepon,
-        paket_layanan: pelanggan.paket_layanan,
-        harga_bulanan: pelanggan.harga_bulanan,
-        tanggal_langganan: pelanggan.tanggal_langganan,
-        tagihan_belum_lunas: pelanggan.tagihan_belum_lunas,
+        id: p._id.toString(),
+        nama_pelanggan: p.nama_pelanggan,
+        no_telepon: p.no_telepon,
+        paket_layanan: p.paket_layanan,
+        harga_bulanan: p.harga_bulanan,
+        tanggal_langganan: p.tanggal_langganan,
+        tagihan_belum_lunas: tagihanBelumLunas,
         next_billing_date: billingInfo.nextBillingDate,
         next_billing_formatted: billingInfo.formattedDate,
         days_until_billing: billingInfo.daysUntilBilling,
         status: billingInfo.daysUntilBilling <= 0 ? 'overdue' : 
                 billingInfo.daysUntilBilling <= 3 ? 'soon' : 'normal',
-        message_preview: this.generateMessagePreview(pelanggan, billingInfo)
+        message_preview: this.generateMessagePreview(p, billingInfo)
       };
     } catch (error) {
       console.error('Error getting billing schedule:', error);

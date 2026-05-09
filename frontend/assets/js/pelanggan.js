@@ -48,8 +48,8 @@ async function loadPelanggan(page = 1) {
           <td>${formatRupiah(p.harga_bulanan)}</td>
           <td>${getStatusBadge(p.status)}</td>
           <td>
-            <button class="btn btn-primary btn-sm" onclick="editPelanggan(${p.id})">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${p.id})">Hapus</button>
+            <button class="btn btn-primary btn-sm" onclick="editPelanggan('${p._id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${p._id}')">Hapus</button>
           </td>
         </tr>
       `).join('');
@@ -162,13 +162,37 @@ function displayLocationMap(lat, lng, address) {
   const mapContainer = document.getElementById('mapContainer');
   mapContainer.innerHTML = '';
   
-  lokasiMap = L.map(mapContainer).setView([lat, lng], 15);
-  
-  // Add tile layer
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
+  const googleStreets = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google'
+  });
+
+  const googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google'
+  });
+
+  const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
     maxZoom: 19
-  }).addTo(lokasiMap);
+  });
+
+  lokasiMap = L.map(mapContainer, {
+    center: [lat, lng],
+    zoom: 15,
+    layers: [googleStreets]
+  });
+
+  const baseMaps = {
+    "Google Streets": googleStreets,
+    "Google Hybrid (Satelit)": googleHybrid,
+    "OpenStreetMap": osmMap
+  };
+
+  L.control.layers(baseMaps, null, { position: 'topright' }).addTo(lokasiMap);
+  L.control.scale({ imperial: false }).addTo(lokasiMap);
 
   // Add marker
   L.marker([lat, lng], {
@@ -225,6 +249,13 @@ async function savePelanggan() {
       status: document.getElementById('status').value
     };
 
+    // Ekstrak koordinat jika user paste dari Google Maps
+    const coords = parseCoordinates(data.alamat);
+    if (coords) {
+      data.latitude = coords.lat;
+      data.longitude = coords.lng;
+    }
+
     if (!data.nama_pelanggan || !data.no_telepon || !data.alamat || !data.paket_layanan || !data.harga_bulanan) {
       showNotification('Semua field harus diisi', 'error');
       return;
@@ -261,7 +292,7 @@ function openDeleteModal(id) {
     const cells = row.querySelectorAll('td');
     // Find the row with the delete button we clicked
     if (cells[0]) {
-      const deleteBtn = row.querySelector(`button[onclick="openDeleteModal(${id})"]`);
+      const deleteBtn = row.querySelector(`button[onclick="openDeleteModal('${id}')"]`);
       if (deleteBtn) {
         pelangganName = cells[0].textContent;
       }

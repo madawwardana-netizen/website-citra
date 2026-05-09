@@ -7,11 +7,11 @@ let deletingPerangkatId = null;
 
 async function loadPelangganList() {
   try {
-    const res = await axios.get('/api/pelanggan', { params: { limit: 1000 } });
+    const res = await axios.get('/pelanggan', { params: { limit: 1000 } });
     if (res.data.success) {
       const select = document.getElementById('pelanggan_id');
       select.innerHTML = '<option value="">-- Pilih Pelanggan --</option>' + 
-        res.data.data.map(p => `<option value="${p.id}">${p.nama_pelanggan}</option>`).join('');
+        res.data.data.map(p => `<option value="${p._id}">${p.nama_pelanggan}</option>`).join('');
     }
   } catch (error) {
     console.error('Error loading pelanggan:', error);
@@ -20,20 +20,20 @@ async function loadPelangganList() {
 
 async function loadPerangkat() {
   try {
-    const res = await axios.get('/api/perangkat');
+    const res = await axios.get('/perangkat');
     if (res.data.success) {
       const table = document.getElementById('perangkatTable');
       table.innerHTML = res.data.data.map(p => `
         <tr>
-          <td>${p.nama_pelanggan}</td>
+          <td>${p.pelanggan_id ? p.pelanggan_id.nama_pelanggan : '-'}</td>
           <td>${p.nama_perangkat}</td>
           <td>${p.tipe_perangkat}</td>
           <td>${p.ip_address || '-'}</td>
           <td>${p.mac_address || '-'}</td>
           <td>${getStatusBadge(p.status_perangkat)}</td>
           <td>
-            <button class="btn btn-primary btn-sm" onclick="editPerangkat(${p.id})"><i class="fas fa-edit"></i> Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="openDeletePerangkatModal(${p.id}, '${p.nama_perangkat}')"><i class="fas fa-trash"></i> Hapus</button>
+            <button class="btn btn-primary btn-sm" onclick="editPerangkat('${p._id}')"><i class="fas fa-edit"></i> Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="openDeletePerangkatModal('${p._id}', '${p.nama_perangkat}')"><i class="fas fa-trash"></i> Hapus</button>
           </td>
         </tr>
       `).join('');
@@ -71,10 +71,10 @@ function closePerangkatModal() {
 
 async function loadPerangkatData(id) {
   try {
-    const res = await axios.get(`/api/perangkat/${id}`);
+    const res = await axios.get(`/perangkat/${id}`);
     if (res.data.success) {
       const p = res.data.data;
-      document.getElementById('pelanggan_id').value = p.pelanggan_id;
+      document.getElementById('pelanggan_id').value = p.pelanggan_id._id || p.pelanggan_id;
       document.getElementById('nama_perangkat').value = p.nama_perangkat;
       document.getElementById('tipe_perangkat').value = p.tipe_perangkat;
       document.getElementById('ip_address').value = p.ip_address || '';
@@ -106,14 +106,14 @@ async function savePerangkat() {
       return;
     }
 
-    let res;
+let res;
     if (editingPerangkatId) {
       // Update
-      res = await axios.put(`/api/perangkat/${editingPerangkatId}`, data);
+      res = await axios.put(`/perangkat/${editingPerangkatId}`, data);
       showNotification('✓ Perangkat berhasil diperbarui', 'success');
     } else {
       // Create
-      res = await axios.post('/api/perangkat', data);
+      res = await axios.post('/perangkat', data);
       showNotification('✓ Perangkat berhasil ditambahkan', 'success');
     }
 
@@ -143,7 +143,7 @@ function closeDeletePerangkatModal() {
 async function confirmDeletePerangkat() {
   try {
     const perangkatName = document.getElementById('deletePerangkatName').textContent;
-    await axios.delete(`/api/perangkat/${deletingPerangkatId}`);
+    await axios.delete(`/perangkat/${deletingPerangkatId}`);
     showNotification(`✓ Perangkat "${perangkatName}" telah dihapus`, 'success');
     closeDeletePerangkatModal();
     loadPerangkat();

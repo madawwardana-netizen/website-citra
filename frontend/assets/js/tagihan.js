@@ -97,10 +97,10 @@ async function loadTagihan() {
           <td>${getStatusBadge(t.status_pembayaran)}</td>
           <td>${formatDateShort(t.bulan_tagihan)}</td>
           <td>
-            <button class="btn btn-sm btn-primary" onclick="editTagihan(${t.id})">
+            <button class="btn btn-sm btn-primary" onclick="editTagihan('${t._id}')">
               <i class="fas fa-edit"></i>
             </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteTagihan(${t.id})">
+            <button class="btn btn-sm btn-danger" onclick="deleteTagihan('${t._id}')">
               <i class="fas fa-trash"></i>
             </button>
           </td>
@@ -172,13 +172,6 @@ function setupEventListeners() {
     });
   }
 
-  // Toggle sidebar
-  const toggleSidebar = document.getElementById('toggleSidebar');
-  if (toggleSidebar) {
-    toggleSidebar.addEventListener('click', () => {
-      document.querySelector('.sidebar').classList.toggle('collapsed');
-    });
-  }
 
   // Buat Tagihan Baru
   const btnSimpan = document.getElementById('btnSimpanTagihan');
@@ -214,7 +207,7 @@ async function editTagihan(id) {
       const tagihan = response.data.data;
       
       // Fill form
-      document.getElementById('editTagihanId').value = tagihan.id;
+      document.getElementById('editTagihanId').value = tagihan._id;
       document.getElementById('editPelangganNama').value = tagihan.nama_pelanggan;
       
       // Format bulan_tagihan as YYYY-MM for month input
@@ -289,7 +282,7 @@ async function loadPelangganOptions() {
       const select = document.getElementById('selectPelanggan');
       if (select) {
         const options = response.data.data.map(p => 
-          `<option value="${p.id}">${p.nama_pelanggan} (${p.no_telepon})</option>`
+          `<option value="${p._id}">${p.nama_pelanggan} (${p.no_telepon})</option>`
         ).join('');
         select.innerHTML = '<option value="">-- Pilih Pelanggan --</option>' + options;
       }
@@ -322,7 +315,7 @@ async function simpanTagihanBaru() {
 
     // Buat tagihan
     const response = await axios.post('/tagihan', {
-      pelanggan_id: parseInt(pelangganId),
+      pelanggan_id: pelangganId,
       bulan_tagihan: bulanTagihan + '-01',
       jumlah_tagihan: parseInt(jumlahTagihan),
       status_pembayaran: status,

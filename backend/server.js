@@ -7,6 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
+const connectDB = require('./config/database');
 
 // Import routes
 const pelangganRoutes = require('./routes/pelangganRoutes');
@@ -88,6 +89,7 @@ app.use((err, req, res, next) => {
 
 // Start Server
 const PORT = process.env.PORT || 5000;
+connectDB(); // Hubungkan ke MongoDB
 app.listen(PORT, () => {
   console.log(`\n╔═══════════════════════════════════════╗`);
   console.log(`║  ISP Management System - API Server  ║`);

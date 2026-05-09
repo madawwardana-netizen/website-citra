@@ -1,31 +1,26 @@
 /**
  * Database Connection Configuration
- * File ini mengatur koneksi ke database MySQL
+ * File ini mengatur koneksi ke MongoDB menggunakan Mongoose
  */
 
-const mysql = require('mysql2/promise');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
-// Buat connection pool untuk performa lebih baik
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'isp_management',
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+const MONGO_URI = process.env.MONGO_URI;
 
-// Test koneksi database
-pool.getConnection()
-  .then(connection => {
-    console.log('✓ Database berhasil terhubung!');
-    connection.release();
-  })
-  .catch(err => {
-    console.error('✗ Error koneksi database:', err.message);
-  });
+const connectDB = async () => {
+  try {
+    if (!MONGO_URI || MONGO_URI.includes('your_mongodb_atlas_connection_string_here')) {
+      throw new Error('MONGO_URI belum dikonfigurasi di file .env');
+    }
 
-module.exports = pool;
+    const conn = await mongoose.connect(MONGO_URI);
+    console.log(`✓ MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`✗ Error koneksi MongoDB: ${error.message}`);
+    // Jangan exit process jika hanya gagal koneksi awal, biarkan server berjalan
+    // tapi log error dengan jelas.
+  }
+};
+
+module.exports = connectDB;

@@ -1,5 +1,5 @@
 /**
- * Peta (Map) JavaScript
+ * Peta (Map) JavaScript - Enhanced with better location markers
  */
 
 let map;
@@ -8,14 +8,44 @@ async function loadMap() {
   try {
     // Initialize Leaflet map if not already done
     if (!map) {
-      map = L.map('map').setView([-6.4, 106.8], 12);
-      
-      // Use CartoDB tile layer sebagai alternatif (lebih stabil)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      });
+
+      const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO',
         subdomains: 'abcd',
         maxZoom: 20
-      }).addTo(map);
+      });
+
+      const googleStreets = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '&copy; Google'
+      });
+
+      const googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '&copy; Google'
+      });
+
+      map = L.map('map', {
+        center: [-6.4, 106.8],
+        zoom: 12,
+        layers: [googleStreets]
+      });
+
+      const baseMaps = {
+        "Google Streets": googleStreets,
+        "Google Hybrid (Satelit)": googleHybrid,
+        "OpenStreetMap": osmMap,
+        "Minimalis (Carto)": cartoLight
+      };
+
+      L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+      L.control.scale({ imperial: false }).addTo(map);
     } else {
       // Clear existing markers
       map.eachLayer(layer => {
@@ -32,17 +62,17 @@ async function loadMap() {
       refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
     }
 
-    // Load pelanggan locations dari endpoint yang benar
+    // Load pelanggan locations
     const res = await axios.get('/pelanggan/peta/coordinates');
     
     if (!res.data || !res.data.success) {
       throw new Error(res.data?.message || 'Gagal mengambil data lokasi');
     }
 
-    const locations = res.data.data || [];
+    const pelangganList = res.data.data || [];
     
-    if (locations.length === 0) {
-      showNotification('Tidak ada data lokasi pelanggan', 'warning');
+    if (pelangganList.length === 0) {
+      showNotification('Tidak ada data pelanggan', 'warning');
       if (refreshBtn) {
         refreshBtn.disabled = false;
         refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Peta';
@@ -53,46 +83,63 @@ async function loadMap() {
     let markerCount = 0;
     let bounds = L.latLngBounds();
     
-    locations.forEach(loc => {
-      // Validasi data lokasi
-      if (!loc.latitude || !loc.longitude) {
-        console.warn('Lokasi tanpa koordinat:', loc);
-        return;
-      }
-
-      // Validasi koordinat valid
-      const lat = parseFloat(loc.latitude);
-      const lng = parseFloat(loc.longitude);
+    pelangganList.forEach(pel => {
+      // Pakai koordinat langsung dari field MongoDB
+      const lat = parseFloat(pel.latitude);
+      const lng = parseFloat(pel.longitude);
       
+      // Validasi koordinat
       if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
-        console.warn('Koordinat tidak valid:', loc);
+        console.warn('Koordinat tidak valid untuk:', pel.nama_pelanggan);
         return;
       }
 
-      // Buat popup content dengan data yang aman
-      const namaCustomer = loc.nama_pelanggan || 'Tidak Ada Nama';
-      const keterangan = loc.keterangan_lokasi || 'Tidak Ada Keterangan';
-      const noTelepon = loc.no_telepon ? `<div class="popup-info-item"><i class="fas fa-phone"></i> <span>${loc.no_telepon}</span></div>` : '';
-      const alamat = loc.alamat ? `<div class="popup-info-item"><i class="fas fa-home"></i> <span>${loc.alamat}</span></div>` : '';
-      const paket = loc.paket_layanan ? `<div class="popup-info-item"><i class="fas fa-wifi"></i> <span>${loc.paket_layanan}</span></div>` : '';
+      // Buat popup content dengan data profesional
+      const namaCustomer = pel.nama_pelanggan || 'Tidak Ada Nama';
+      const noTelepon = pel.no_telepon || '-';
+      const paket = pel.paket_layanan || '-';
+      const harga = pel.harga_bulanan ? formatRupiah(pel.harga_bulanan) : '-';
+      const status = pel.status || '-';
       
       const popupContent = `
-        <div class="popup-content-customer">
-          <b>${namaCustomer}</b>
-          <hr>
+        <div class="popup-content-customer" style="min-width: 250px;">
+          <b style="color: #0066CC; font-size: 15px;">${namaCustomer}</b>
+          <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
           <small>
-            <div class="popup-info-item"><i class="fas fa-location-dot"></i> <span>${keterangan}</span></div>
-            ${noTelepon}
-            ${alamat}
-            ${paket}
+            <div class="popup-info-item" style="margin: 5px 0;">
+              <i class="fas fa-phone" style="color: #0066CC; margin-right: 8px;"></i>
+              <span><strong>No. Telepon:</strong> ${noTelepon}</span>
+            </div>
+            <div class="popup-info-item" style="margin: 5px 0;">
+              <i class="fas fa-wifi" style="color: #0066CC; margin-right: 8px;"></i>
+              <span><strong>Paket:</strong> ${paket}</span>
+            </div>
+            <div class="popup-info-item" style="margin: 5px 0;">
+              <i class="fas fa-money-bill" style="color: #0066CC; margin-right: 8px;"></i>
+              <span><strong>Harga:</strong> ${harga}/bln</span>
+            </div>
+            <div class="popup-info-item" style="margin: 5px 0;">
+              <i class="fas fa-check-circle" style="color: #0066CC; margin-right: 8px;"></i>
+              <span><strong>Status:</strong> ${status}</span>
+            </div>
           </small>
         </div>
       `;
 
-      // Buat marker dengan custom icon
+      // Buat marker dengan custom blue icon
+      const customIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+
       const marker = L.marker([lat, lng], {
+        icon: customIcon,
         title: namaCustomer
-      }).bindPopup(popupContent);
+      }).bindPopup(popupContent, { maxWidth: 300 });
       
       marker.addTo(map);
       bounds.extend([lat, lng]);
@@ -105,9 +152,9 @@ async function loadMap() {
     }
 
     if (markerCount === 0) {
-      showNotification('Tidak ada data lokasi dengan koordinat valid', 'warning');
+      showNotification('Tidak ada pelanggan dengan lokasi valid', 'warning');
     } else {
-      showNotification(`${markerCount} lokasi pelanggan dimuat di peta`, 'success');
+      showNotification(`${markerCount} lokasi pelanggan berhasil ditampilkan`, 'success');
     }
 
     // Reset button state
@@ -132,17 +179,10 @@ async function loadMap() {
 // Setup refresh button
 document.addEventListener('DOMContentLoaded', () => {
   const refreshBtn = document.getElementById('refreshMapBtn');
-  const geocodeBtn = document.getElementById('geocodeBtn');
   
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
       loadMap();
-    });
-  }
-  
-  if (geocodeBtn) {
-    geocodeBtn.addEventListener('click', () => {
-      autoGeocodeAll();
     });
   }
   
